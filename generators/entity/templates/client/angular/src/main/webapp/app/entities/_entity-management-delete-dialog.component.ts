@@ -1,55 +1,64 @@
+<%#
+ Copyright 2013-2017 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://jhipster.github.io/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
 <%_
-var i18nToLoad = [entityInstance];
-for (var idx in fields) {
-    if (fields[idx].fieldIsEnum == true) {
+const i18nToLoad = [entityInstance];
+for (const idx in fields) {
+    if (fields[idx].fieldIsEnum === true) {
         i18nToLoad.push(fields[idx].enumInstance);
     }
 }
 _%>
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 
 import { NgbActiveModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
-import { EventManager<% if (enableTranslation) { %>, JhiLanguageService<% } %> } from 'ng-jhipster';
+import { JhiEventManager } from 'ng-jhipster';
 
-import { <%= entityClass %> } from './<%= entityFileName %>.model';
-import { <%= entityClass %>PopupService } from './<%= entityFileName %>-popup.service';
-import { <%= entityClass %>Service } from './<%= entityFileName %>.service';
+import { <%= entityAngularName %> } from './<%= entityFileName %>.model';
+import { <%= entityAngularName %>PopupService } from './<%= entityFileName %>-popup.service';
+import { <%= entityAngularName %>Service } from './<%= entityFileName %>.service';
 
 @Component({
     selector: '<%= jhiPrefix %>-<%= entityFileName %>-delete-dialog',
     templateUrl: './<%= entityFileName %>-delete-dialog.component.html'
 })
-export class <%= entityAngularJSName %>DeleteDialogComponent {
+export class <%= entityAngularName %>DeleteDialogComponent {
 
-    <%= entityInstance %>: <%= entityClass %>;
+    <%= entityInstance %>: <%= entityAngularName %>;
 
     constructor(
-        <%_ if (enableTranslation) { _%>
-        private jhiLanguageService: JhiLanguageService,
-        <%_ } _%>
-        private <%= entityInstance %>Service: <%= entityClass %>Service,
+        private <%= entityInstance %>Service: <%= entityAngularName %>Service,
         public activeModal: NgbActiveModal,
-        private eventManager: EventManager,
-        private router: Router
+        private eventManager: JhiEventManager
     ) {
-        <%_ if (enableTranslation) { _%>
-        this.jhiLanguageService.setLocations(<%- toArrayString(i18nToLoad) %>);
-        <%_ } _%>
     }
 
-    clear () {
+    clear() {
         this.activeModal.dismiss('cancel');
-        this.router.navigate([{ outlets: { popup: null }}], { replaceUrl: true });
     }
 
-    confirmDelete (id: number) {
-        this.<%= entityInstance %>Service.delete(id).subscribe(response => {
+    confirmDelete(id: <% if (pkType === 'String') { %>string<% } else { %>number<% } %>) {
+        this.<%= entityInstance %>Service.delete(id).subscribe((response) => {
             this.eventManager.broadcast({
                 name: '<%= entityInstance %>ListModification',
                 content: 'Deleted an <%= entityInstance %>'
             });
-            this.router.navigate([{ outlets: { popup: null }}], { replaceUrl: true });
             this.activeModal.dismiss(true);
         });
     }
@@ -59,20 +68,19 @@ export class <%= entityAngularJSName %>DeleteDialogComponent {
     selector: '<%=jhiPrefix%>-<%= entityFileName %>-delete-popup',
     template: ''
 })
-export class <%= entityAngularJSName %>DeletePopupComponent implements OnInit, OnDestroy {
+export class <%= entityAngularName %>DeletePopupComponent implements OnInit, OnDestroy {
 
-    modalRef: NgbModalRef;
     routeSub: any;
 
-    constructor (
+    constructor(
         private route: ActivatedRoute,
-        private <%= entityInstance %>PopupService: <%= entityClass %>PopupService
+        private <%= entityInstance %>PopupService: <%= entityAngularName %>PopupService
     ) {}
 
     ngOnInit() {
-        this.routeSub = this.route.params.subscribe(params => {
-            this.modalRef = this.<%= entityInstance %>PopupService
-                .open(<%= entityAngularJSName %>DeleteDialogComponent, params['id']);
+        this.routeSub = this.route.params.subscribe((params) => {
+            this.<%= entityInstance %>PopupService
+                .open(<%= entityAngularName %>DeleteDialogComponent as Component, params['id']);
         });
     }
 

@@ -1,3 +1,21 @@
+<%#
+ Copyright 2013-2017 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://jhipster.github.io/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
 import groovy.json.JsonSlurper
 import org.gradle.internal.os.OperatingSystem
 
@@ -11,12 +29,12 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.1"
+        classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:2.5"
         classpath "net.ltgt.gradle:gradle-apt-plugin:0.9"
         classpath "org.springframework.boot:spring-boot-gradle-plugin:${spring_boot_version}"
         classpath "org.springframework.build.gradle:propdeps-plugin:0.0.7"
         <%_ if (!skipClient) { _%>
-        classpath "com.moowork.gradle:gradle-node-plugin:1.0.1"
+        classpath "com.moowork.gradle:gradle-node-plugin:1.2.0"
         <%_ } _%>
         classpath "io.spring.gradle:dependency-management-plugin:0.6.1.RELEASE"
         //jhipster-needle-gradle-buildscript-dependency - JHipster will add additional gradle build script plugins here
@@ -37,14 +55,17 @@ apply plugin: 'com.moowork.gulp'
     <%_ } _%>
 <%_ } _%>
 apply plugin: 'io.spring.dependency-management'
-<%_ if (applicationType === 'microservice' || applicationType === 'gateway' || applicationType === 'uaa' || messageBroker === 'kafka') { _%>
+<%_ if (serviceDiscoveryType || applicationType === 'gateway' || applicationType === 'microservice' || applicationType === 'uaa' || messageBroker === 'kafka' || hibernateCache === 'infinispan') { _%>
 dependencyManagement {
   imports {
-    <%_ if (applicationType === 'microservice' || applicationType === 'gateway' || applicationType === 'uaa') { _%>
-    mavenBom 'org.springframework.cloud:spring-cloud-dependencies:' + spring_cloud_version
-    <%_ } _%>
     <%_ if (messageBroker === 'kafka') { _%>
     mavenBom 'org.springframework.cloud:spring-cloud-stream-dependencies:' + spring_cloud_stream_version
+    <%_ } _%>
+    <%_ if (serviceDiscoveryType || applicationType === 'gateway' || applicationType === 'microservice' || applicationType === 'uaa') { _%>
+    mavenBom 'org.springframework.cloud:spring-cloud-dependencies:' + spring_cloud_version
+    <%_ } _%>
+    <%_ if (hibernateCache === 'infinispan') { _%>
+    mavenBom 'org.infinispan:infinispan-bom:' + infinispan_version
     <%_ } _%>
   }
 }
@@ -73,7 +94,7 @@ if (OperatingSystem.current().isWindows()) {
         doFirst {
             manifest {
                 attributes 'Class-Path': configurations.runtime.files.collect {
-                    it.toURL().toString().replaceFirst(/file:\/+/, '/')
+                    it.toURL().toString().replaceFirst(/file:\/+/, '/').replaceAll(' ', '%20')
                 }.join(' ')
             }
         }
@@ -83,7 +104,7 @@ if (OperatingSystem.current().isWindows()) {
         addResources = false
         dependsOn pathingJar
         doFirst {
-            classpath = files("$buildDir/classes/main", "$buildDir/resources/main", pathingJar.archivePath)
+            classpath = files("$buildDir/classes/java/main", "$buildDir/resources/main", pathingJar.archivePath)
         }
     }
 } else {
@@ -149,12 +170,6 @@ if (project.hasProperty('prod')) {
     apply from: 'gradle/profile_dev.gradle'
 }
 
-if (project.hasProperty('shell')) {
-    dependencies {
-        compile "org.springframework.boot:spring-boot-starter-remote-shell"
-    }
-}
-
 if (project.hasProperty('graphite')) {
     apply from: 'gradle/graphite.gradle'
 }
@@ -162,6 +177,12 @@ if (project.hasProperty('graphite')) {
 if (project.hasProperty('prometheus')) {
     apply from: 'gradle/prometheus.gradle'
 }
+<%_ if (serviceDiscoveryType || applicationType === 'gateway' || applicationType === 'microservice' || applicationType === 'uaa') { _%>
+
+if (project.hasProperty('zipkin')) {
+    apply from: 'gradle/zipkin.gradle'
+}
+<%_ } _%>
 
 group = '<%= packageName %>'
 version = '0.0.1-SNAPSHOT'
@@ -188,56 +209,66 @@ repositories {
     maven { url 'https://oss.sonatype.org/content/repositories/releases' }
     maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
     maven { url 'http://repo.maven.apache.org/maven2' }
+    <%_ if (devDatabaseType === 'oracle' || prodDatabaseType === 'oracle') { _%>
+    maven { url "https://maven.oracle.com" }
+    <%_ } _%>
 }
 
 dependencies {
     compile "io.github.jhipster:jhipster:${jhipster_server_version}"
-    compile "io.dropwizard.metrics:metrics-core"
-    compile "io.dropwizard.metrics:metrics-healthchecks:${dropwizard_metrics_version}"
+    compile "io.dropwizard.metrics:metrics-core:${dropwizard_metrics_version}"
+    <%_ if (hibernateCache === 'ehcache' || hibernateCache === 'infinispan') { _%>
+    compile "io.dropwizard.metrics:metrics-jcache:${dropwizard_metrics_version}"
+    <%_ } _%>
     compile "io.dropwizard.metrics:metrics-jvm:${dropwizard_metrics_version}"
     compile "io.dropwizard.metrics:metrics-servlet:${dropwizard_metrics_version}"
     compile "io.dropwizard.metrics:metrics-json:${dropwizard_metrics_version}"
-    compile ("io.dropwizard.metrics:metrics-servlets:${dropwizard_metrics_version}") {
-        exclude(module: 'metrics-healthchecks')
-    }
+    compile "io.dropwizard.metrics:metrics-servlets:${dropwizard_metrics_version}"
     compile ("net.logstash.logback:logstash-logback-encoder:${logstash_logback_encoder_version}") {
-        exclude(module: 'ch.qos.logback')
+        exclude(group: 'ch.qos.logback')
     }
-    compile "com.fasterxml.jackson.datatype:jackson-datatype-json-org:${jackson_version}"
-    compile "com.fasterxml.jackson.datatype:jackson-datatype-hppc:${jackson_version}"
-    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jackson_version}"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-json-org"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-hppc"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
     <%_ if (databaseType === 'sql') { _%>
     compile "com.fasterxml.jackson.datatype:jackson-datatype-hibernate5"
     <%_ } _%>
-    compile "com.fasterxml.jackson.core:jackson-annotations:${jackson_version}"
-    compile "com.fasterxml.jackson.core:jackson-databind:${jackson_version}"
-    compile ("com.ryantenney.metrics:metrics-spring:${metrics_spring_version}") {
-        exclude(module: 'metrics-core')
-        exclude(module: 'metrics-healthchecks')
-    }
+    compile "com.fasterxml.jackson.core:jackson-annotations"
+    compile "com.fasterxml.jackson.core:jackson-databind"
+    compile "com.fasterxml.jackson.module:jackson-module-afterburner"
+    compile ("com.ryantenney.metrics:metrics-spring:${metrics_spring_version}")
     <%_ if (hibernateCache === 'hazelcast') { _%>
-    compile "com.hazelcast:hazelcast:${hazelcast_version}"
-    compile "com.hazelcast:hazelcast-hibernate52:${hazelcast_hibernate_version}"
-    compile "com.hazelcast:hazelcast-spring:${hazelcast_version}"
+    compile "com.hazelcast:hazelcast"
+    compile "com.hazelcast:hazelcast-hibernate52:${hazelcast_hibernate52_version}"
+    compile "com.hazelcast:hazelcast-spring"
     <%_ } _%>
-    <%_ if (clusteredHttpSession === 'hazelcast' && hibernateCache != 'hazelcast') { _%>
-    compile "com.hazelcast:hazelcast:${hazelcast_version}"
-    compile "com.hazelcast:hazelcast-spring:${hazelcast_version}"
+    <%_ if ((clusteredHttpSession === 'hazelcast' || applicationType === 'gateway') && hibernateCache !== 'hazelcast') { _%>
+    compile "com.hazelcast:hazelcast"
+    compile "com.hazelcast:hazelcast-spring"
     <%_ } _%>
     <%_ if (clusteredHttpSession === 'hazelcast') { _%>
-    compile "com.hazelcast:hazelcast-wm:${hazelcast_version}"
+    compile "com.hazelcast:hazelcast-wm:${hazelcast_wm_version}"
     <%_ } _%>
-    <%_ if (hibernateCache === 'ehcache' || hibernateCache === 'hazelcast') { _%>
-    compile "javax.cache:cache-api:${jcache_version}"
+    <%_ if (hibernateCache === 'infinispan') { _%>
+    compile "org.hibernate:hibernate-infinispan:${infinispan_hibernate52_version}"
+    <%_ } _%>
+    <%_ if (hibernateCache === 'infinispan') {_%>
+    compile "org.infinispan:infinispan-spring-boot-starter:${infinispan_boot_starter_version}"
+    compile "org.infinispan:infinispan-core"
+    compile "org.infinispan:infinispan-jcache"
+    compile ("org.infinispan:infinispan-cloud:${infinispan_cloud_version}") {
+        exclude module: 'undertow-core'
+    }
+    <%_ } _%>
+    <%_ if (hibernateCache === 'ehcache' || hibernateCache === 'hazelcast' || hibernateCache === 'infinispan' || applicationType === 'gateway') { _%>
+    compile "javax.cache:cache-api"
     <%_ } _%>
     <%_ if (databaseType === 'sql') { _%>
     compile "org.hibernate:hibernate-core:${hibernate_version}"
-    compile ("com.zaxxer:HikariCP") {
-        exclude(module: 'tools')
-    }
+    compile ("com.zaxxer:HikariCP:${hikaricp_version}")
     <%_ } _%>
     <%_ if (databaseType === 'cassandra' || applicationType === 'gateway') { _%>
-    compile "commons-codec:commons-codec:${commons_codec_version}"
+    compile "commons-codec:commons-codec"
     <%_ } _%>
     compile "org.apache.commons:commons-lang3:${commons_lang_version}"
     compile "commons-io:commons-io:${commons_io_version}"
@@ -245,22 +276,21 @@ dependencies {
     <%_ if (databaseType === 'cassandra' || applicationType === 'gateway') { _%>
     compile "net.jpountz.lz4:lz4:${lz4_version}"
     <%_ } _%>
-    compile "org.apache.geronimo.javamail:geronimo-javamail_1.4_mail:${geronimo_javamail_1_4_mail_version}"
     <%_ if (hibernateCache === 'ehcache' && databaseType === 'sql') { _%>
     compile "org.ehcache:ehcache"
     compile "org.hibernate:hibernate-jcache:${hibernate_version}"
     <%_ } _%>
     <%_ if (databaseType === 'sql') { _%>
-    compile "org.hibernate:hibernate-envers"
-    compile "org.hibernate:hibernate-validator:${hibernate_validator_version}"
-    compile ("org.liquibase:liquibase-core:${liquibase_core_version}") {
-        exclude(module: 'jetty-servlet')
-    }
+    compile "org.hibernate:hibernate-envers:${hibernate_version}"
+    compile "org.hibernate:hibernate-validator"
+    compile "org.hibernate:hibernate-entitymanager:${hibernate_version}"
+    compile ("org.liquibase:liquibase-core")
     compile "com.mattbertolini:liquibase-slf4j:${liquibase_slf4j_version}"
     <%_ } _%>
     compile "org.springframework.boot:spring-boot-actuator"
     compile "org.springframework.boot:spring-boot-autoconfigure"
     compile "org.springframework.boot:spring-boot-loader-tools"
+    compile "org.springframework.boot:spring-boot-starter-mail"
     compile "org.springframework.boot:spring-boot-starter-logging"
     compile "org.springframework.boot:spring-boot-starter-aop"
     <%_ if (databaseType === 'sql') { _%>
@@ -270,7 +300,7 @@ dependencies {
     compile "org.springframework.boot:spring-boot-starter-data-elasticsearch"
     // needed to get around elasticsearch stacktrace about jna not found
     // https://github.com/elastic/elasticsearch/issues/13245
-    compile "net.java.dev.jna:jna:${jna_version}"
+    compile "net.java.dev.jna:jna"
     <%_ } _%>
     <%_ if (databaseType === 'mongodb') { _%>
     compile "org.springframework.boot:spring-boot-starter-data-mongodb"
@@ -278,6 +308,7 @@ dependencies {
     <%_ if (messageBroker === 'kafka') { _%>
     compile "org.springframework.cloud:spring-cloud-stream"
     compile "org.springframework.cloud:spring-cloud-stream-binder-kafka"
+    compile "org.springframework.kafka:spring-kafka:${spring_kafka_version}"
     <%_ } _%>
     compile "org.springframework.boot:spring-boot-starter-security"
     compile ("org.springframework.boot:spring-boot-starter-web") {
@@ -289,29 +320,29 @@ dependencies {
     <%_ } _%>
     compile "org.springframework.boot:spring-boot-starter-thymeleaf"
     <%_ if (databaseType === 'cassandra' || applicationType === 'gateway') { _%>
-    compile ("com.datastax.cassandra:cassandra-driver-core:${datastax_driver_version}") {
-        exclude module: 'com.codahale.metrics'
-    }
-    compile "com.datastax.cassandra:cassandra-driver-extras:${datastax_driver_version}"
-    compile "com.datastax.cassandra:cassandra-driver-mapping:${datastax_driver_version}"
+    compile "com.google.guava:guava:18.0"
+    compile "com.datastax.cassandra:cassandra-driver-extras:" + dependencyManagement.managedVersions["com.datastax.cassandra:cassandra-driver-core"]
+    compile "com.datastax.cassandra:cassandra-driver-mapping"
     <%_ } _%>
     <%_ if (applicationType === 'gateway') { _%>
     compile "org.springframework.cloud:spring-cloud-starter-zuul"
+    compile "com.github.vladimir-bukhtoyarov:bucket4j-core:${bucket4j_version}"
+    compile "com.github.vladimir-bukhtoyarov:bucket4j-jcache:${bucket4j_version}"
     <%_ } _%>
     <%_ if (applicationType === 'microservice' || applicationType === 'gateway' || applicationType === 'uaa') { _%>
     compile "org.springframework.cloud:spring-cloud-starter"
     compile "org.springframework.cloud:spring-cloud-starter-ribbon"
-        <%_ if (serviceDiscoveryType === 'eureka') { _%>
-    compile "org.springframework.cloud:spring-cloud-starter-eureka"
-    compile "org.springframework.cloud:spring-cloud-starter-config"
-        <%_ } _%>
-        <%_ if (serviceDiscoveryType === 'consul') { _%>
-    compile "org.springframework.cloud:spring-cloud-starter-consul-discovery"
-    compile "org.springframework.cloud:spring-cloud-starter-consul-config"
-        <%_ } _%>
     compile "org.springframework.cloud:spring-cloud-starter-hystrix"
     compile "org.springframework.cloud:spring-cloud-starter-spectator"
     compile "org.springframework.retry:spring-retry"
+    <%_ } _%>
+    <%_ if (serviceDiscoveryType === 'eureka') { _%>
+    compile "org.springframework.cloud:spring-cloud-starter-eureka"
+    compile "org.springframework.cloud:spring-cloud-starter-config"
+    <%_ } _%>
+    <%_ if (serviceDiscoveryType === 'consul') { _%>
+    compile "org.springframework.cloud:spring-cloud-starter-consul-discovery"
+    compile "org.springframework.cloud:spring-cloud-starter-consul-config"
     <%_ } _%>
     <%_ if (authenticationType === 'uaa') { _%>
     compile "org.springframework.cloud:spring-cloud-security"
@@ -320,9 +351,7 @@ dependencies {
     compile "org.springframework.cloud:spring-cloud-starter-feign"
     <%_ } _%>
     compile "org.springframework.boot:spring-boot-starter-cloud-connectors"
-    compile ("org.springframework:spring-context-support") {
-        exclude(module: 'quartz')
-    }
+    compile ("org.springframework:spring-context-support")
     compile "org.springframework.security:spring-security-config"
     compile "org.springframework.security:spring-security-data"
     compile "org.springframework.security:spring-security-web"
@@ -353,13 +382,13 @@ dependencies {
     compile "org.postgresql:postgresql"
     <%_ } _%>
     <%_ if (devDatabaseType === 'mariadb' || prodDatabaseType === 'mariadb') { _%>
-    compile "org.mariadb.jdbc:mariadb-java-client:${mariadb_java_client_version}"
+    compile "org.mariadb.jdbc:mariadb-java-client"
     <%_ } _%>
     <%_ if (devDatabaseType === 'h2Disk' || devDatabaseType === 'h2Memory') { _%>
     compile "com.h2database:h2"
     <%_ } _%>
     <%_ if (devDatabaseType === 'mssql' || prodDatabaseType === 'mssql') { _%>
-    compile "com.microsoft.sqlserver:mssql-jdbc:${mssql_jdbc_driver_version}"
+    compile "com.microsoft.sqlserver:mssql-jdbc:${mssql_jdbc_version}"
     compile "com.github.sabomichal:liquibase-mssql:${liquibase_mssql_version}"
     <%_ } _%>
     compile "org.mapstruct:mapstruct-jdk8:${mapstruct_version}"
@@ -370,21 +399,23 @@ dependencies {
     compile "org.springframework.social:spring-social-facebook"
     compile "org.springframework.social:spring-social-twitter"
     <%_ } _%>
-    testCompile "com.jayway.awaitility:awaitility:${awaility_version}"
+    testCompile "org.awaitility:awaitility:${awaitility_version}"
     testCompile "com.jayway.jsonpath:json-path"
     <%_ if (databaseType === 'cassandra') { _%>
     testCompile ("org.cassandraunit:cassandra-unit-spring:${cassandra_unit_spring_version}") {
-        exclude(module: 'org.slf4j')
+        exclude(group: 'org.slf4j')
     }
     <%_ } _%>
     <%_ if (cucumberTests) { _%>
     testCompile "info.cukes:cucumber-junit:${cucumber_version}"
     testCompile "info.cukes:cucumber-spring:${cucumber_version}"
     <%_ } _%>
-    testCompile "org.springframework.boot:spring-boot-starter-test"
+    testCompile ("org.springframework.boot:spring-boot-starter-test") {
+        exclude group: 'com.vaadin.external.google', module: 'android-json'
+    }
     testCompile "org.springframework.security:spring-security-test"
     testCompile "org.springframework.boot:spring-boot-test"
-    testCompile "org.assertj:assertj-core:${assertj_core_version}"
+    testCompile "org.assertj:assertj-core:${assertj_version}"
     testCompile "junit:junit"
     testCompile "org.mockito:mockito-core"
     <%_ if (databaseType === 'sql') { _%>
@@ -396,21 +427,20 @@ dependencies {
     testCompile "org.hamcrest:hamcrest-library"
     <%_ if (gatlingTests) { _%>
     testCompile "io.gatling.highcharts:gatling-charts-highcharts:${gatling_version}"
-        <%_ if (databaseType === 'cassandra') { _%>
-    compile "io.netty:netty-handler:4.0.36.Final"
-        <%_ } _%>
     <%_ } _%>
-    <%_ if (devDatabaseType != 'h2Disk' && devDatabaseType != 'h2Memory') { _%>
+    <%_ if (devDatabaseType !== 'h2Disk' && devDatabaseType !== 'h2Memory') { _%>
     testCompile "com.h2database:h2"
     <%_ } _%>
     <%_ if (devDatabaseType === 'oracle' || prodDatabaseType === 'oracle') { _%>
     // more information at https://blogs.oracle.com/dev2dev/entry/how_to_get_oracle_jdbc
-    compile "com.oracle.jdbc:ojdbc7:${oracle_driver_java_version}"
+    compile "com.oracle.jdbc:ojdbc7:${oracle_version}"
     <%_ } _%>
     <%_ if (messageBroker === 'kafka') { _%>
     testCompile "org.springframework.cloud:spring-cloud-stream-test-support"
     <%_ } _%>
-    optional "org.springframework.boot:spring-boot-configuration-processor:${spring_boot_version}"
+    optional ("org.springframework.boot:spring-boot-configuration-processor:${spring_boot_version}") {
+        exclude group: 'com.vaadin.external.google', module: 'android-json'
+    }
     //jhipster-needle-gradle-dependency - JHipster will add additional dependencies here
 }
 
@@ -423,7 +453,7 @@ task cleanResources(type: Delete) {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '3.3'
+    gradleVersion = '4.0'
 }
 
 task stage(dependsOn: 'bootRepackage') {
@@ -432,24 +462,11 @@ task stage(dependsOn: 'bootRepackage') {
 
 if (project.hasProperty('nodeInstall')) {
     node {
-        version = '6.9.4'
-        npmVersion = '3.10.9'
+        version = "${node_version}"
+        npmVersion = "${npm_version}"
+        yarnVersion = "${yarn_version}"
         download = true
     }
-
-    // Workaround for https://github.com/srs/gradle-node-plugin/issues/134
-    task installLocalNpm {
-        def npmVersion = ''
-        def packageFile = file( new File( (File) node.nodeModulesDir, 'node_modules/npm/package.json' ) )
-        if (packageFile.exists()) {
-            def json = new JsonSlurper().parseText(packageFile.text)
-            npmVersion = json.version
-        }
-        if (npmVersion != node.npmVersion) {
-            npmInstall.dependsOn 'npm_install_npm@' + node.npmVersion
-        }
-    }
-    npmInstall.dependsOn installLocalNpm
 }
 <%_ } _%>
 

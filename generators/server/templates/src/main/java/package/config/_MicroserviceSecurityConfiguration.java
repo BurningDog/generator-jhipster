@@ -1,6 +1,24 @@
+<%#
+ Copyright 2013-2017 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://jhipster.github.io/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
 package <%=packageName%>.config;
 
-<%_ if(authenticationType == 'jwt') { _%>
+<%_ if(authenticationType === 'jwt') { _%>
 import <%=packageName%>.security.AuthoritiesConstants;
 import <%=packageName%>.security.jwt.JWTConfigurer;
 import <%=packageName%>.security.jwt.TokenProvider;
@@ -54,9 +72,7 @@ public class MicroserviceSecurityConfiguration extends WebSecurityConfigurerAdap
         .and()
             .authorizeRequests()
             .antMatchers("/api/**").authenticated()
-            <%_ if (serviceDiscoveryType == 'consul') { _%>
             .antMatchers("/management/health").permitAll()
-            <%_ } _%>
             .antMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             .antMatchers("/swagger-resources/configuration/ui").permitAll()
         .and()
@@ -73,7 +89,7 @@ public class MicroserviceSecurityConfiguration extends WebSecurityConfigurerAdap
     }
 }
 <%_ } _%>
-<%_ if(authenticationType == 'uaa') { _%>
+<%_ if(authenticationType === 'uaa') { _%>
 import <%=packageName%>.security.AuthoritiesConstants;
 
 import io.github.jhipster.config.JHipsterProperties;
@@ -129,9 +145,7 @@ public class MicroserviceSecurityConfiguration extends ResourceServerConfigurerA
             .authorizeRequests()
             .antMatchers("/api/profile-info").permitAll()
             .antMatchers("/api/**").authenticated()
-            <%_ if (serviceDiscoveryType == 'consul') { _%>
             .antMatchers("/management/health").permitAll()
-            <%_ } _%>
             .antMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             .antMatchers("/swagger-resources/configuration/ui").permitAll();
     }

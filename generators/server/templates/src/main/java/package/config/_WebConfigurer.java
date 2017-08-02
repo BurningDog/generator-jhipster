@@ -1,3 +1,21 @@
+<%#
+ Copyright 2013-2017 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://jhipster.github.io/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
 package <%=packageName%>.config;
 
 import io.github.jhipster.config.JHipsterConstants;
@@ -6,8 +24,8 @@ import io.github.jhipster.web.filter.CachingHttpHeadersFilter;<% } %>
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.servlet.InstrumentedFilter;
-import com.codahale.metrics.servlets.MetricsServlet;<% if (clusteredHttpSession == 'hazelcast' || hibernateCache == 'hazelcast') { %>
-import com.hazelcast.core.HazelcastInstance;<% } %><% if (clusteredHttpSession == 'hazelcast') { %>
+import com.codahale.metrics.servlets.MetricsServlet;<% if (clusteredHttpSession === 'hazelcast' || hibernateCache === 'hazelcast') { %>
+import com.hazelcast.core.HazelcastInstance;<% } %><% if (clusteredHttpSession === 'hazelcast') { %>
 import com.hazelcast.web.SessionListener;
 import com.hazelcast.web.spring.SpringAwareWebFilter;<% } %>
 
@@ -15,6 +33,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.embedded.*;
+import org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainerFactory;
+import io.undertow.UndertowOptions;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,17 +58,17 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
 
     private final Environment env;
 
-    private final JHipsterProperties jHipsterProperties;<% if (clusteredHttpSession == 'hazelcast' || hibernateCache == 'hazelcast') { %>
+    private final JHipsterProperties jHipsterProperties;<% if (clusteredHttpSession === 'hazelcast' || hibernateCache === 'hazelcast') { %>
 
     private final HazelcastInstance hazelcastInstance;<% } %>
 
     private MetricRegistry metricRegistry;
 
-    public WebConfigurer(Environment env, JHipsterProperties jHipsterProperties<% if (clusteredHttpSession == 'hazelcast' || hibernateCache == 'hazelcast') { %>, HazelcastInstance hazelcastInstance<% } %>) {
+    public WebConfigurer(Environment env, JHipsterProperties jHipsterProperties<% if (clusteredHttpSession === 'hazelcast' || hibernateCache === 'hazelcast') { %>, HazelcastInstance hazelcastInstance<% } %>) {
 
         this.env = env;
         this.jHipsterProperties = jHipsterProperties;
-        <%_ if (clusteredHttpSession == 'hazelcast' || hibernateCache == 'hazelcast') { _%>
+        <%_ if (clusteredHttpSession === 'hazelcast' || hibernateCache === 'hazelcast') { _%>
         this.hazelcastInstance = hazelcastInstance;
         <%_ } _%>
     }
@@ -58,17 +78,17 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
         if (env.getActiveProfiles().length != 0) {
             log.info("Web application configuration, using profiles: {}", (Object[]) env.getActiveProfiles());
         }
-        EnumSet<DispatcherType> disps = EnumSet.of(DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.ASYNC);<% if (clusteredHttpSession == 'hazelcast') { %>
+        EnumSet<DispatcherType> disps = EnumSet.of(DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.ASYNC);<% if (clusteredHttpSession === 'hazelcast') { %>
         initClusteredHttpSessionFilter(servletContext, disps);<% } %>
         initMetrics(servletContext, disps);<% if (!skipClient) { %>
         if (env.acceptsProfiles(JHipsterConstants.SPRING_PROFILE_PRODUCTION)) {
             initCachingHttpHeadersFilter(servletContext, disps);
-        }<% } %><% if (devDatabaseType == 'h2Disk' || devDatabaseType == 'h2Memory') { %>
+        }<% } %><% if (devDatabaseType === 'h2Disk' || devDatabaseType === 'h2Memory') { %>
         if (env.acceptsProfiles(JHipsterConstants.SPRING_PROFILE_DEVELOPMENT)) {
             initH2Console(servletContext);
         }<% } %>
         log.info("Web application fully configured");
-    }<% if (clusteredHttpSession == 'hazelcast') { %>
+    }<% if (clusteredHttpSession === 'hazelcast') { %>
 
     /**
      * Initializes the Clustered Http Session filter
@@ -125,16 +145,30 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
         mappings.add("json", "text/html;charset=utf-8");
         container.setMimeMappings(mappings);
         <%_ if (!skipClient) { _%>
-        // When running in an IDE or with <% if (buildTool == 'gradle') { %>./gradlew bootRun<% } else { %>./mvnw spring-boot:run<% } %>, set location of the static web assets.
+        // When running in an IDE or with <% if (buildTool === 'gradle') { %>./gradlew bootRun<% } else { %>./mvnw spring-boot:run<% } %>, set location of the static web assets.
         setLocationForStaticAssets(container);
         <%_ } _%>
+
+        /*
+         * Enable HTTP/2 for Undertow - https://twitter.com/ankinson/status/829256167700492288
+         * HTTP/2 requires HTTPS, so HTTP requests will fallback to HTTP/1.1.
+         * See the JHipsterProperties class and your application-*.yml configuration files
+         * for more information.
+         */
+        if (jHipsterProperties.getHttp().getVersion().equals(JHipsterProperties.Http.Version.V_2_0) &&
+            container instanceof UndertowEmbeddedServletContainerFactory) {
+
+            ((UndertowEmbeddedServletContainerFactory) container)
+                .addBuilderCustomizers(builder ->
+                    builder.setServerOption(UndertowOptions.ENABLE_HTTP2, true));
+        }
     }
     <%_ if (!skipClient) { _%>
 
     private void setLocationForStaticAssets(ConfigurableEmbeddedServletContainer container) {
         File root;
         String prefixPath = resolvePathPrefix();
-        <%_ if (clientFramework === 'angular2') { _%>
+        <%_ if (clientFramework !== 'angular1') { _%>
         root = new File(prefixPath + "<%= CLIENT_DIST_DIR %>");
         <%_ } else { _%>
         if (env.acceptsProfiles(JHipsterConstants.SPRING_PROFILE_PRODUCTION)) {
@@ -223,7 +257,7 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
             <%_ } _%>
         }
         return new CorsFilter(source);
-    }<% if (devDatabaseType == 'h2Disk' || devDatabaseType == 'h2Memory') { %>
+    }<% if (devDatabaseType === 'h2Disk' || devDatabaseType === 'h2Memory') { %>
 
     /**
      * Initializes H2 console.

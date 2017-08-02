@@ -1,5 +1,22 @@
-import { Component } from '@angular/core';
-import { JhiLanguageService } from 'ng-jhipster';
+<%#
+ Copyright 2013-2017 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://jhipster.github.io/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
+import { Component, OnInit } from '@angular/core';
 
 import { <%=jhiPrefixCapitalized%>ConfigurationService } from './configuration.service';
 
@@ -7,7 +24,7 @@ import { <%=jhiPrefixCapitalized%>ConfigurationService } from './configuration.s
     selector: '<%=jhiPrefix%>-configuration',
     templateUrl: './configuration.component.html'
 })
-export class <%=jhiPrefixCapitalized%>ConfigurationComponent {
+export class <%=jhiPrefixCapitalized%>ConfigurationComponent implements OnInit {
     allConfiguration: any = null;
     configuration: any = null;
     configKeys: any[];
@@ -16,10 +33,8 @@ export class <%=jhiPrefixCapitalized%>ConfigurationComponent {
     reverse: boolean;
 
     constructor(
-        private jhiLanguageService: JhiLanguageService,
         private configurationService: <%=jhiPrefixCapitalized%>ConfigurationService
     ) {
-        this.jhiLanguageService.setLocations(['configuration']);
         this.configKeys = [];
         this.filter = '';
         this.orderProp = 'prefix';
@@ -34,7 +49,7 @@ export class <%=jhiPrefixCapitalized%>ConfigurationComponent {
         this.configurationService.get().subscribe((configuration) => {
             this.configuration = configuration;
 
-            for (let config of configuration) {
+            for (const config of configuration) {
                 if (config.properties !== undefined) {
                     this.configKeys.push(Object.keys(config.properties));
                 }

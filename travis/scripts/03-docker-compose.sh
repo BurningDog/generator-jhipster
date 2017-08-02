@@ -1,9 +1,10 @@
 #!/bin/bash
+set -e
 
 #-------------------------------------------------------------------------------
 # Start docker container
 #-------------------------------------------------------------------------------
-cd "$HOME"/app
+cd "$APP_FOLDER"
 if [ -a src/main/docker/jhipster-registry.yml ]; then
     docker-compose -f src/main/docker/jhipster-registry.yml up -d
 fi

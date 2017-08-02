@@ -1,9 +1,31 @@
+<%#
+ Copyright 2013-2017 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://jhipster.github.io/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
 /* ==============================================================
 Bootstrap tweaks
 ===============================================================*/
 
 body, h1, h2, h3, h4 {
     font-weight: 300;
+}
+
+body {
+    background: #e4e5e6;
 }
 
 /* ==========================================================================
@@ -31,7 +53,7 @@ Generic styles
 
 /* other generic styles */
 
-.card {
+.jh-card {
     padding: 1.5%;
     margin-top: 20px;
     border: none;
@@ -46,32 +68,22 @@ Generic styles
     padding: 10px;
 }
 
+.w-40 {
+    width: 40% !important;
+}
+
+.w-60 {
+    width: 60% !important;
+}
+
 .break {
     white-space: normal;
     word-break:break-all;
 }
 
-.voffset  { margin-top: 2px; }
-.voffset1 { margin-top: 5px; }
-.voffset2 { margin-top: 10px; }
-.voffset3 { margin-top: 15px; }
-.voffset4 { margin-top: 30px; }
-.voffset5 { margin-top: 40px; }
-.voffset6 { margin-top: 60px; }
-.voffset7 { margin-top: 80px; }
-.voffset8 { margin-top: 100px; }
-.voffset9 { margin-top: 150px; }
-
 .readonly {
     background-color: #eee;
     opacity: 1;
-}
-
-/*FIXME this is to support grids in table class; */
-table td[class*=col-], table th[class*=col-] {
-    position: static;
-    display: table-cell;
-    float: none;
 }
 
 .footer {
@@ -85,7 +97,7 @@ a:hover {
   cursor: pointer;
 }
 
-.hand {
+.hand, [jhisortby] {
     cursor: pointer;
 }
 
@@ -159,22 +171,6 @@ entity tables helpers
    flex-direction: row;
    -webkit-justify-content: flex-end;
    justify-content: flex-end;
-}
-
-.jh-table > tbody > tr > td {
-    /* Align text in td verifically (top aligned by Bootstrap) */
-    vertical-align: middle;
-}
-
-.jh-table > thead > tr > th > .glyphicon-sort, .jh-table > thead > tr > th > .glyphicon-sort-by-attributes, .jh-table > thead > tr > th > .glyphicon-sort-by-attributes-alt {
-    /* less visible sorting icons */
-    opacity: 0.5;
-}
-
-.jh-table > thead > tr > th > .glyphicon-sort:hover, .jh-table > thead > tr > th > .glyphicon-sort-by-attributes:hover, .jh-table > thead > tr > th > .glyphicon-sort-by-attributes-alt:hover {
-    /* full visible sorting icons and pointer when mouse is over them */
-    opacity: 1;
-    cursor: pointer;
 }
 
 /* ==========================================================================

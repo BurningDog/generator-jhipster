@@ -1,4 +1,24 @@
+<%#
+ Copyright 2013-2017 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://jhipster.github.io/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
 package <%=packageName%>.config;
+
+import java.net.InetSocketAddress;
 
 import io.github.jhipster.config.JHipsterProperties;
 
@@ -7,7 +27,9 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.LoggerContextListener;
 import ch.qos.logback.core.spi.ContextAwareBase;
-import net.logstash.logback.appender.LogstashSocketAppender;
+import ch.qos.logback.core.util.Duration;
+import net.logstash.logback.appender.LogstashTcpSocketAppender;
+import net.logstash.logback.encoder.LogstashEncoder;
 import net.logstash.logback.stacktrace.ShortenedThrowableConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,25 +43,27 @@ public class LoggingConfiguration {
 
     private LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
 
-    @Value("${spring.application.name}")
-    private String appName;
+    private final String appName;
 
-    @Value("${server.port}")
-    private String serverPort;
-    <%_ if (serviceDiscoveryType == "eureka") { _%>
+    private final String serverPort;
+    <%_ if (serviceDiscoveryType === "eureka") { _%>
 
-    @Value("${eureka.instance.instanceId}")
-    private String instanceId;
+    private final String instanceId;
     <%_ } _%>
-    <%_ if (serviceDiscoveryType == "consul") { _%>
+    <%_ if (serviceDiscoveryType === "consul") { _%>
 
-    @Value("${spring.cloud.consul.discovery.instanceId}")
-    private String instanceId;
+    private final String instanceId;
     <%_ } _%>
 
     private final JHipsterProperties jHipsterProperties;
 
-    public LoggingConfiguration(JHipsterProperties jHipsterProperties) {
+    public LoggingConfiguration(@Value("${spring.application.name}") String appName, @Value("${server.port}") String serverPort,
+        <% if (serviceDiscoveryType === "eureka") { %>@Value("${eureka.instance.instanceId}") String instanceId,<% } %><% if (serviceDiscoveryType === "consul") { %>@Value("${spring.cloud.consul.discovery.instanceId}") String instanceId,<% } %> JHipsterProperties jHipsterProperties) {
+        this.appName = appName;
+        this.serverPort = serverPort;
+        <%_ if (serviceDiscoveryType !== false) { _%>
+        this.instanceId = instanceId;
+        <%_ } _%>
         this.jHipsterProperties = jHipsterProperties;
         if (jHipsterProperties.getLogging().getLogstash().isEnabled()) {
             addLogstashAppender(context);
@@ -54,27 +78,29 @@ public class LoggingConfiguration {
     public void addLogstashAppender(LoggerContext context) {
         log.info("Initializing Logstash logging");
 
-        LogstashSocketAppender logstashAppender = new LogstashSocketAppender();
+        LogstashTcpSocketAppender logstashAppender = new LogstashTcpSocketAppender();
         logstashAppender.setName("LOGSTASH");
         logstashAppender.setContext(context);
-        <%_ if (serviceDiscoveryType && (applicationType == 'microservice' || applicationType == 'gateway' || applicationType == 'uaa')) { _%>
+        <%_ if (serviceDiscoveryType && (applicationType === 'microservice' || applicationType === 'gateway' || applicationType === 'uaa')) { _%>
         String customFields = "{\"app_name\":\"" + appName + "\",\"app_port\":\"" + serverPort + "\"," +
             "\"instance_id\":\"" + instanceId + "\"}";
         <%_ } else { _%>
         String customFields = "{\"app_name\":\"" + appName + "\",\"app_port\":\"" + serverPort + "\"}";
         <%_ } _%>
 
+        // More documentation is available at: https://github.com/logstash/logstash-logback-encoder
+        LogstashEncoder logstashEncoder=new LogstashEncoder();
         // Set the Logstash appender config from JHipster properties
-        logstashAppender.setSyslogHost(jHipsterProperties.getLogging().getLogstash().getHost());
-        logstashAppender.setPort(jHipsterProperties.getLogging().getLogstash().getPort());
-        logstashAppender.setCustomFields(customFields);
-
-        // Limit the maximum length of the forwarded stacktrace so that it won't exceed the 8KB UDP limit of logstash
+        logstashEncoder.setCustomFields(customFields);
+        // Set the Logstash appender config from JHipster properties
+        logstashAppender.addDestinations(new InetSocketAddress(jHipsterProperties.getLogging().getLogstash().getHost(),jHipsterProperties.getLogging().getLogstash().getPort()));
+        
         ShortenedThrowableConverter throwableConverter = new ShortenedThrowableConverter();
-        throwableConverter.setMaxLength(7500);
         throwableConverter.setRootCauseFirst(true);
-        logstashAppender.setThrowableConverter(throwableConverter);
+        logstashEncoder.setThrowableConverter(throwableConverter);
+        logstashEncoder.setCustomFields(customFields);
 
+        logstashAppender.setEncoder(logstashEncoder);
         logstashAppender.start();
 
         // Wrap the appender in an Async appender for performance
@@ -87,7 +113,6 @@ public class LoggingConfiguration {
 
         context.getLogger("ROOT").addAppender(asyncLogstashAppender);
     }
-
 
     /**
      * Logback configuration is achieved by configuration file and API.

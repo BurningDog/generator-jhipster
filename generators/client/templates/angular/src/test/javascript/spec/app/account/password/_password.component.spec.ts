@@ -1,13 +1,26 @@
-import { ComponentFixture, TestBed, async, inject } from '@angular/core/testing';
-import { MockBackend } from '@angular/http/testing';
-import { Http, BaseRequestOptions } from '@angular/http';
+<%#
+ Copyright 2013-2017 the original author or authors from the JHipster project.
+
+ This file is part of the JHipster project, see https://jhipster.github.io/
+ for more information.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-%>
+import { ComponentFixture, TestBed, async } from '@angular/core/testing';
 import { Observable } from 'rxjs/Rx';
-<%_ if (enableTranslation) { _%>
-import { JhiLanguageService } from 'ng-jhipster';
-import { MockLanguageService } from '../../../helpers/mock-language.service';
-<%_ } _%>
+import { <%=angularXAppName%>TestModule } from '../../../test.module';
 import { PasswordComponent } from '../../../../../../main/webapp/app/account/password/password.component';
-import { Password } from '../../../../../../main/webapp/app/account/password/password.service';
+import { PasswordService } from '../../../../../../main/webapp/app/account/password/password.service';
 import { Principal } from '../../../../../../main/webapp/app/shared/auth/principal.service';
 import { AccountService } from '../../../../../../main/webapp/app/shared/auth/account.service';
 <%_ if (websocket === 'spring-websocket') { _%>
@@ -15,20 +28,19 @@ import { <%=jhiPrefixCapitalized%>TrackerService } from '../../../../../../main/
 import { MockTrackerService } from '../../../helpers/mock-tracker.service';
 <%_ } _%>
 
-
 describe('Component Tests', () => {
 
     describe('PasswordComponent', () => {
 
         let comp: PasswordComponent;
         let fixture: ComponentFixture<PasswordComponent>;
-        let service: Password;
+        let service: PasswordService;
 
         beforeEach(async(() => {
             TestBed.configureTestingModule({
+                imports: [<%=angularXAppName%>TestModule],
                 declarations: [PasswordComponent],
                 providers: [
-                    MockBackend,
                     Principal,
                     AccountService,
                     <%_ if (websocket === 'spring-websocket') { _%>
@@ -37,33 +49,16 @@ describe('Component Tests', () => {
                         useClass: MockTrackerService
                     },
                     <%_ } _%>
-                    BaseRequestOptions,
-                    {
-                        provide: Http,
-                        useFactory: (backendInstance: MockBackend, defaultOptions: BaseRequestOptions) => {
-                            return new Http(backendInstance, defaultOptions);
-                        },
-                        deps: [MockBackend, BaseRequestOptions]
-                    },
-                    <%_ if (enableTranslation) { _%>
-                    {
-                        provide: JhiLanguageService,
-                        useClass: MockLanguageService
-                    },
-                    <%_ } _%>
-                    Password
+                    PasswordService
                 ]
-            }).overrideComponent(PasswordComponent, {
-                set: {
-                    template: ''
-                }
-            }).compileComponents();
+            }).overrideTemplate(PasswordComponent, '')
+            .compileComponents();
         }));
 
         beforeEach(() => {
             fixture = TestBed.createComponent(PasswordComponent);
             comp = fixture.componentInstance;
-            service = fixture.debugElement.injector.get(Password);
+            service = fixture.debugElement.injector.get(PasswordService);
         });
 
         it('should show error if passwords do not match', () => {
